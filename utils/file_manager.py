@@ -460,7 +460,7 @@ class FileManager:
                 f.write("# 基础API密钥搜索\n")
                 f.write("AIzaSy in:file\n")
                 f.write("AIzaSy in:file filename:.env\n")
-                f.write("AIzaSy in:file filename:env.example\n")
+                f.write("AIzaSy in:file filename:.env\n")
             logger.info(f"Created default queries file: {queries_file}")
         except Exception as e:
             logger.error(f"Failed to create default queries file {queries_file}: {e}")

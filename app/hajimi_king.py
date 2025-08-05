@@ -8,9 +8,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Union, Any
 
 import google.generativeai as genai
+import requests
 from google.api_core import exceptions as google_exceptions
 
 from common.Logger import logger
+
 
 sys.path.append('../')
 from common.config import Config
@@ -81,7 +83,16 @@ def normalize_query(query: str) -> str:
 
 
 def extract_keys_from_content(content: str) -> List[str]:
-    pattern = r'(AIzaSy[A-Za-z0-9\-_]{33})'
+    """
+    根据搜索目标从内容中提取密钥
+    """
+    if Config.SEARCH_TARGET == 'openrouter':
+        # OpenRouter key "sk-or-v1-" + 64个字符
+        pattern = r'(sk-or-v1-[a-zA-Z0-9]{64})'
+    else:
+        # 默认搜索Gemini key
+        pattern = r'(AIzaSy[A-Za-z0-9\-_]{33})'
+        
     return re.findall(pattern, content)
 
 
@@ -170,17 +181,23 @@ def process_item(item: Dict[str, Any]) -> tuple:
     valid_keys = []
     rate_limited_keys = []
 
+    # 根据配置选择验证函数
+    if Config.SEARCH_TARGET == 'openrouter':
+        validate_func = check_openrouter_key
+    else:
+        validate_func = validate_gemini_key
+
     # 验证每个密钥
     for key in keys:
-        validation_result = validate_gemini_key(key)
-        if validation_result and "ok" in validation_result:
+        is_valid, details = validate_func(key)
+        if is_valid:
             valid_keys.append(key)
-            logger.info(f"✅ VALID: {key}")
-        elif validation_result == "rate_limited":
+            logger.info(f"✅ VALID: {key} ({details})")
+        elif details == "rate_limited":
             rate_limited_keys.append(key)
-            logger.warning(f"⚠️ RATE LIMITED: {key}, check result: {validation_result}")
+            logger.warning(f"⚠️ RATE LIMITED: {key}, check result: {details}")
         else:
-            logger.info(f"❌ INVALID: {key}, check result: {validation_result}")
+            logger.info(f"❌ INVALID: {key}, check result: {details}")
 
     # 保存结果
     if valid_keys:
@@ -201,7 +218,33 @@ def process_item(item: Dict[str, Any]) -> tuple:
     return len(valid_keys), len(rate_limited_keys)
 
 
-def validate_gemini_key(api_key: str) -> Union[bool, str]:
+def check_openrouter_key(api_key: str) -> (bool, str):
+    """
+    验证OpenRouter Key的有效性并查询余额
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+    proxy = Config.get_random_proxy()
+    try:
+        response = requests.get(Config.OPENROUTER_API_URL, headers=headers, proxies=proxy, timeout=10)
+        if response.status_code == 200:
+            data = response.json().get('data', {})
+            if data:
+                limit = data.get('limit', 0)
+                usage = data.get('usage', 0)
+                remaining = limit - usage
+                return True, f"Valid, Limit: ${limit:.4f}, Remaining: ${remaining:.4f}"
+            return True, "Valid, but no data"
+        elif response.status_code == 401:
+            return False, "Invalid API Key"
+        elif response.status_code == 429:
+            return False, "rate_limited"
+        else:
+            return False, f"Error, status code: {response.status_code}"
+    except requests.exceptions.RequestException as e:
+        return False, f"Request failed: {e}"
+
+
+def validate_gemini_key(api_key: str) -> (bool, str):
     try:
         time.sleep(random.uniform(0.5, 1.5))
 
@@ -223,18 +266,18 @@ def validate_gemini_key(api_key: str) -> Union[bool, str]:
 
         model = genai.GenerativeModel(Config.HAJIMI_CHECK_MODEL)
         response = model.generate_content("hi")
-        return "ok"
+        return True, "ok"
     except (google_exceptions.PermissionDenied, google_exceptions.Unauthenticated) as e:
-        return "not_authorized_key"
+        return False, "not_authorized_key"
     except google_exceptions.TooManyRequests as e:
-        return "rate_limited"
+        return False, "rate_limited"
     except Exception as e:
         if "429" in str(e) or "rate limit" in str(e).lower() or "quota" in str(e).lower():
-            return "rate_limited:429"
+            return False, "rate_limited:429"
         elif "403" in str(e) or "SERVICE_DISABLED" in str(e) or "API has not been used" in str(e):
-            return "disabled"
+            return False, "disabled"
         else:
-            return f"error:{e.__class__.__name__}"
+            return False, f"error:{e.__class__.__name__}"
 
 
 def print_skip_stats():

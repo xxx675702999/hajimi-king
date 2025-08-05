@@ -56,7 +56,12 @@ class Config:
     SCANNED_SHAS_FILE = os.getenv("SCANNED_SHAS_FILE", "scanned_shas.txt")
 
     # Gemini模型配置
-    HAJIMI_CHECK_MODEL = os.getenv("HAJIMI_CHECK_MODEL", "gemini-2.5-flash")
+    HAJIMI_CHECK_MODEL = os.getenv("HAJIMI_CHECK_MODEL", "gemini-1.5-flash")
+
+    # OpenRouter配置
+    SEARCH_TARGET = os.getenv("SEARCH_TARGET", "gemini").lower()
+    OPENROUTER_API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/auth/key")
+    OPENROUTER_CHECK_MODEL = os.getenv("OPENROUTER_CHECK_MODEL", "google/gemini-flash-1.5")
 
     # 文件路径黑名单配置
     FILE_PATH_BLACKLIST_STR = os.getenv("FILE_PATH_BLACKLIST", "readme,docs,doc/,.md,sample,tutorial")
@@ -174,7 +179,12 @@ logger.info(f"KEYS_SEND_DETAIL_PREFIX: {Config.KEYS_SEND_DETAIL_PREFIX}")
 logger.info(f"DATE_RANGE_DAYS: {Config.DATE_RANGE_DAYS} days")
 logger.info(f"QUERIES_FILE: {Config.QUERIES_FILE}")
 logger.info(f"SCANNED_SHAS_FILE: {Config.SCANNED_SHAS_FILE}")
-logger.info(f"HAJIMI_CHECK_MODEL: {Config.HAJIMI_CHECK_MODEL}")
+logger.info(f"SEARCH_TARGET: {Config.SEARCH_TARGET}")
+if Config.SEARCH_TARGET == 'gemini':
+    logger.info(f"HAJIMI_CHECK_MODEL: {Config.HAJIMI_CHECK_MODEL}")
+elif Config.SEARCH_TARGET == 'openrouter':
+    logger.info(f"OPENROUTER_API_URL: {Config.OPENROUTER_API_URL}")
+    logger.info(f"OPENROUTER_CHECK_MODEL: {Config.OPENROUTER_CHECK_MODEL}")
 logger.info(f"FILE_PATH_BLACKLIST: {len(Config.FILE_PATH_BLACKLIST)} items")
 logger.info(f"*" * 30 + " CONFIG END " + "*" * 30)
 

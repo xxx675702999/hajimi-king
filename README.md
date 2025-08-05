@@ -14,9 +14,7 @@
 
 ### 🔮 待开发功能 (TODO)
 
-- [ ] **数据库支持保存key** 💾 - 支持将发现的API密钥持久化存储到数据库中
-- [ ] **API、可视化展示抓取的key列表** 📊 - 提供API接口和可视化界面获取已抓取的密钥列表
-- [ ] **付费key检测** 💰 - 额外check下付费key
+- [x] 新增查询OpenRouter的Key，并验证key的有效性和查询付费key的余额，并且可以通过配置切换搜索gemini还是OpenRouter
 
 ## 📋 目录 🗂️
 
@@ -46,7 +44,7 @@ git clone <repository-url>
 cd hajimi-king
 
 # 复制配置文件
-cp env.example .env
+cp .env .env
 
 # 复制查询文件
 cp queries.example queries.txt
@@ -134,7 +132,7 @@ services:
 创建 `.env` 文件（参考 `env.example`）：
 ```bash
 # 复制示例配置文件
-cp env.example .env
+cp .env .env
 # 编辑配置文件，填入你的GitHub Token
 ```
 
@@ -182,11 +180,13 @@ PROXY=http://localhost:1080
 
 | 变量名 | 默认值                | 说明                                              |
 |--------|--------------------|-------------------------------------------------|
+| `SEARCH_TARGET` | `gemini` | 搜索目标，可选 `gemini` 或 `openrouter` 🎯 |
 | `PROXY` | 空 | 代理服务器地址，支持多个（逗号分隔）和账密认证，格式：`http://user:pass@proxy:port` 🌐 |
 | `DATA_PATH` | `/app/data`        | 数据存储目录路径 📂                                     |
 | `DATE_RANGE_DAYS` | `730`              | 仓库年龄过滤（天数），只扫描指定天数内的仓库 📅                       |
 | `QUERIES_FILE` | `queries.txt`      | 搜索查询配置文件路径（表达式严重影响搜索的高效性) 🎯                    |
-| `HAJIMI_CHECK_MODEL` | `gemini-2.5-flash` | 用于验证key有效的模型 🤖                                 |
+| `HAJIMI_CHECK_MODEL` | `gemini-1.5-flash` | 用于验证 **Gemini** key有效的模型 🤖                                 |
+| `OPENROUTER_CHECK_MODEL` | `google/gemini-flash-1.5` | 用于验证 **OpenRouter** key有效的模型 🤖 |
 | `GEMINI_BALANCER_SYNC_ENABLED` | `false` | 是否启用Gemini Balancer同步 🔗                        |
 | `GEMINI_BALANCER_URL` | 空 | Gemini Balancer服务地址（http://your-gemini-balancer.com） 🌐 |
 | `GEMINI_BALANCER_AUTH` | 空 | Gemini Balancer认证信息(密码） 🔐                      |
@@ -216,12 +216,20 @@ PROXY=http://localhost:1080
 # 必填配置
 GITHUB_TOKENS=ghp_your_token_here_1,ghp_your_token_here_2
 
+# 搜索目标 ("gemini" or "openrouter")
+SEARCH_TARGET=gemini
+
 # 重要配置（可选修改）
 DATA_PATH=/app/data
 DATE_RANGE_DAYS=730
 QUERIES_FILE=queries.txt
-HAJIMI_CHECK_MODEL=gemini-2.5-flash
 PROXY=
+
+# Gemini验证模型
+HAJIMI_CHECK_MODEL=gemini-1.5-flash
+
+# OpenRouter验证模型
+OPENROUTER_CHECK_MODEL=google/gemini-flash-1.5
 
 # Gemini Balancer同步配置
 GEMINI_BALANCER_SYNC_ENABLED=false
@@ -256,9 +264,14 @@ FILE_PATH_BLACKLIST=readme,docs,doc/,.md,example,sample,tutorial,test,spec,demo,
 # 每行一个查询语句，支持GitHub搜索语法
 # 以#开头的行为注释，空行会被忽略
 
-# 基础搜索
+# 搜索Gemini Keys
 AIzaSy in:file
-AizaSy in:file filename:.env
+"AIzaSy" in:file filename:.env
+
+# 搜索OpenRouter Keys
+"sk-or-v1" in:file
+"sk-or-v1" in:file filename:config
+"sk-or-v1" in:file extension:json
 ```
 
 > 📖 **搜索语法参考**：[GitHub Code Search Syntax](https://docs.github.com/en/search-github/searching-on-github/searching-code) 📚  

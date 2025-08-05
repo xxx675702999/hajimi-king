@@ -227,13 +227,25 @@ def check_openrouter_key(api_key: str) -> (bool, str):
     try:
         response = requests.get(Config.OPENROUTER_API_URL, headers=headers, proxies=proxy, timeout=10)
         if response.status_code == 200:
-            data = response.json().get('data', {})
-            if data:
-                limit = data.get('limit', 0)
-                usage = data.get('usage', 0)
-                remaining = limit - usage
-                return True, f"Valid, Limit: ${limit:.4f}, Remaining: ${remaining:.4f}"
-            return True, "Valid, but no data"
+            response_data = response.json()
+            data = response_data.get('data')
+
+            if isinstance(data, dict):
+                # 修复：正确处理OpenRouter的返回格式
+                if 'total_credits' in data and 'total_usage' in data:
+                    total_credits = float(data.get('total_credits', 0))
+                    total_usage = float(data.get('total_usage', 0))
+                    remaining = total_credits - total_usage
+                    return True, f"Valid, Total: ${total_credits:.4f}, Remaining: ${remaining:.4f}"
+
+                # 兼容旧的 'limit' 和 'usage' 字段
+                if 'limit' in data and 'usage' in data:
+                    limit = float(data.get('limit', 0))
+                    usage = float(data.get('usage', 0))
+                    remaining = limit - usage
+                    return True, f"Valid, Limit: ${limit:.4f}, Remaining: ${remaining:.4f}"
+
+            return True, "Valid, but no credit data found"
         elif response.status_code == 401:
             return False, "Invalid API Key"
         elif response.status_code == 429:

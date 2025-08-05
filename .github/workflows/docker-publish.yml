@@ -3,14 +3,14 @@ name: Docker Build and Publish
 on:
   push:
     branches:
-      - main
+      - feature-openrouter
     tags:
       - 'v*'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: hajimi-king
+  IMAGE_NAME: hajimi-king-openrouter
 
 jobs:
   build-and-push:

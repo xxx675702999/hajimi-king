@@ -173,7 +173,7 @@ class GitHubClient:
             # 获取proxy配置
             proxies = Config.get_random_proxy()
 
-            logger.info(f"🔍 Processing file: {metadata_url}")
+            logger.info(f"🔍 Processing path: {metadata_url}")
             if proxies:
                 metadata_response = requests.get(metadata_url, headers=headers, proxies=proxies)
             else:
@@ -182,10 +182,26 @@ class GitHubClient:
             metadata_response.raise_for_status()
             file_metadata = metadata_response.json()
 
+            if isinstance(file_metadata, list):
+                # It's a directory, process all files in it
+                logger.info(f"📂 It's a directory, processing all files in it: {metadata_url}")
+                all_contents = []
+                for file_in_dir in file_metadata:
+                    if file_in_dir.get('type') == 'file':
+                        # Construct the item dictionary expected by get_file_content
+                        file_item = {
+                            "repository": item["repository"],
+                            "path": file_in_dir["path"]
+                        }
+                        content = self.get_file_content(file_item)
+                        if content:
+                            all_contents.append(content)
+                return "\n".join(all_contents)
+            # It's a single file
             # 检查是否有base64编码的内容
             encoding = file_metadata.get("encoding")
             content = file_metadata.get("content")
-            
+
             if encoding == "base64" and content:
                 try:
                     # 解码base64内容
@@ -193,7 +209,7 @@ class GitHubClient:
                     return decoded_content
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to decode base64 content: {e}, falling back to download_url")
-            
+
             # 如果没有base64内容或解码失败，使用原有的download_url逻辑
             download_url = file_metadata.get("download_url")
             if not download_url:
@@ -209,7 +225,7 @@ class GitHubClient:
             return content_response.text
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Failed to fetch file content: {metadata_url}, {type(e).__name__}")
+            logger.error(f"❌ Failed to fetch path content: {metadata_url}, {type(e).__name__}")
             return None
 
     @staticmethod

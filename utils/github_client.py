@@ -1,6 +1,7 @@
 import base64
 import random
 import time
+from urllib.parse import quote
 from typing import Dict, List, Optional, Any
 
 import requests
@@ -191,7 +192,7 @@ class GitHubClient:
                         # Construct the item dictionary expected by get_file_content
                         file_item = {
                             "repository": item["repository"],
-                            "path": file_in_dir["path"]
+                            "path": quote(file_in_dir["path"])
                         }
                         content = self.get_file_content(file_item)
                         if content:
